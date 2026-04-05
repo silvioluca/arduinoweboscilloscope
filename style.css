@@ -1,0 +1,49 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: #DAE3E3;
+  color: #343a40;
+}
+
+.container {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  color: #008184;
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+}
+
+.conn-btn {
+  padding: 6px 14px;
+  background: #008184;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.main {
+  display: flex;
+  gap: 14px;
+}
+
+.col-left, .col-right {
+  background: #ECF1F1;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.chart-wrapper canvas {
+  width: 100%;
+}
