@@ -1,49 +1,144 @@
+/* ── Reset ── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #DAE3E3; color: #343a40; min-height: 100vh; }
 
-body {
-  font-family: 'Segoe UI', Tahoma, sans-serif;
-  background: #DAE3E3;
-  color: #343a40;
+/* ── Layout ── */
+.container { max-width: 1500px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.main { display: flex; gap: 14px; align-items: flex-start; }
+.col-left { background: #ECF1F1; padding: 14px; border-radius: 8px; flex: 3; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.col-right { background: #ECF1F1; padding: 14px; border-radius: 8px; flex: 1; min-width: 200px; max-width: 280px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Typography ── */
+.title { color: #008184; font-family: "Courier New", monospace; font-size: clamp(13px,1.5vw,20px); font-weight: 700; letter-spacing: 2.4px; }
+.sec-title { font-family: "Courier New", monospace; font-size: clamp(9px,0.9vw,11px); font-weight: 700; letter-spacing: 1.2px; color: #2C353A; margin-bottom: 6px; display: block; }
+.lbl { font-family: "Courier New", monospace; font-size: clamp(9px,0.8vw,11px); font-weight: 700; letter-spacing: 0.8px; color: #5D6A6B; white-space: nowrap; }
+.hint { font-family: "Courier New", monospace; font-size: 10px; color: #8a9a9a; margin-top: 4px; line-height: 1.4; }
+
+/* ── Serial bar ── */
+.serial-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conn-btn { padding: 6px 14px; background: #008184; border: none; border-radius: 6px; color: #fff; font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; cursor: pointer; transition: background .15s; white-space: nowrap; }
+.conn-btn:hover { background: #006b6e; }
+.conn-btn.connected { background: #e65100; }
+.conn-btn.connected:hover { background: #bf360c; }
+.baud-sel { font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; color: #2C353A; background: #ECF1F1; border: 1.5px solid #dce3e3; border-radius: 4px; padding: 3px 6px; cursor: pointer; outline: none; }
+.conn-status { font-family: "Courier New", monospace; font-size: clamp(9px,0.8vw,11px); font-weight: 700; color: #e65100; }
+.conn-status.connected { color: #2e7d32; }
+.no-serial { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 6px 12px; font-family: "Courier New", monospace; font-size: 11px; color: #856404; display: none; }
+
+/* ── Generic section ── */
+.section { background: #fff; border: 1px solid #dce3e3; border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.sec-hdr { display: flex; align-items: center; justify-content: space-between; }
+
+/* ── Channel selector ── */
+.ch-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; width: 100%; }
+.ch-label { display: flex; align-items: center; gap: 5px; font-family: "Courier New", monospace; font-size: clamp(10px,1vw,12px); font-weight: 700; letter-spacing: 0.8px; cursor: pointer; user-select: none; color: #2C353A; }
+.ch-label.disabled { opacity: 0.35; cursor: not-allowed; }
+.ch-label input[type="checkbox"] { accent-color: #008184; width: 14px; height: 14px; cursor: pointer; }
+.ch-label.disabled input[type="checkbox"] { cursor: not-allowed; }
+.ch-dot { width: 12px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+
+/* ── Select ── */
+.sel { font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; color: #2C353A; background: #ECF1F1; border: 1.5px solid #dce3e3; border-radius: 4px; padding: 3px 6px; cursor: pointer; outline: none; }
+.sel:focus { border-color: #008184; }
+
+/* ── Chart ── */
+.chart-wrapper { position: relative; width: 100%; flex-shrink: 0; }
+.chart-wrapper canvas { display: block; width: 100% !important; height: auto !important; max-height: 260px; background: #fff; border-radius: 4px; }
+#grid-overlay { position: absolute; top:0; left:0; width:100%!important; height:100%!important; max-height:none!important; pointer-events:all; background:transparent!important; border-radius:4px; cursor:crosshair; }
+
+/* ── Selection info ── */
+.sel-info { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: #fff; border-radius: 6px; border: 1px solid #008184; font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; color: #2C353A; flex-shrink: 0; }
+.sel-div { width: 1px; height: 14px; background: #dce3e3; }
+
+/* ── Controls bar ── */
+.ctrl-bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 8px 12px; background: #fff; border-radius: 6px; border: 1px solid #dce3e3; flex-shrink: 0; }
+.ctrl-grp { display: flex; align-items: center; gap: 5px; }
+.ctrl-grp-r { margin-left: auto; }
+.vdiv { width: 1px; height: 24px; background: #dce3e3; flex-shrink: 0; }
+
+/* ── Buttons ── */
+.btn { width: clamp(24px,2.5vw,28px); height: clamp(24px,2.5vw,28px); border: 1.5px solid #008184; background: #fff; color: #008184; border-radius: 4px; font-size: clamp(12px,1.2vw,15px); line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s, color .15s; flex-shrink: 0; }
+.btn:hover, .btn.active { background: #008184; color: #fff; }
+
+/* ── Slider bar ── */
+.slider-bar { display: flex; align-items: center; gap: 10px; padding: 7px 12px; background: #fff; border-radius: 6px; border: 1px solid #dce3e3; flex-shrink: 0; }
+.slider-bar input[type="range"] { flex: 1; -webkit-appearance: none; height: 4px; background: #dce3e3; border-radius: 2px; outline: none; cursor: pointer; }
+.slider-bar input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #008184; cursor: pointer; }
+.slider-bar input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border: none; border-radius: 50%; background: #008184; cursor: pointer; }
+.slider-val { font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; color: #2C353A; min-width: 50px; text-align: right; }
+
+/* ── Stats ── */
+.stats-grid, .stats-hdr { display: grid; grid-template-columns: 36px 1fr 1fr 1fr; align-items: center; gap: 6px; }
+.stats-hdr { border-bottom: 1px solid #dce3e3; padding-bottom: 5px; margin-bottom: 2px; }
+.slbl { font-family: "Courier New", monospace; font-size: clamp(9px,0.8vw,11px); font-weight: 700; letter-spacing: 1px; color: #5D6A6B; }
+.schl { font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; }
+.sval { font-family: "Courier New", monospace; font-size: clamp(11px,1vw,13px); font-weight: 700; color: #2C353A; text-align: center; }
+
+/* ── Tab section ── */
+.tab-section { background: #fff; border: 1px solid #dce3e3; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+
+.tab-bar { display: flex; background: #cdd7d8; border-radius: 0; }
+.tab-btn { flex: 1; padding: 10px 6px; font-family: "Courier New", monospace; font-size: clamp(9px,0.9vw,12px); font-weight: 700; letter-spacing: 0.8px; color: #8a9fa0; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: color .15s, background .15s, border-color .15s; white-space: nowrap; }
+.tab-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.tab-btn.active { color: #fff; border-bottom-color: #008184; background: rgba(0,129,132,0.75); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.tab-content { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+.tab-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+/* ── Trigger ── */
+.trig-status { font-family: "Courier New", monospace; font-size: clamp(9px,0.8vw,11px); font-weight: 700; letter-spacing: 1px; padding: 3px 10px; border-radius: 4px; background: #e8f5e9; color: #2e7d32; cursor: pointer; margin-left: auto; }
+.trig-status.triggered { background: #fff3e0; color: #e65100; }
+.trig-status.triggered:hover { background: #ffe0b2; color: #bf360c; }
+.trig-status.off { background: #ECF1F1; color: #5D6A6B; }
+.trig-lvl { font-family: "Courier New", monospace; font-size: clamp(11px,1vw,13px); font-weight: 700; color: #2C353A; min-width: 44px; }
+
+/* ── Generator ── */
+.gen-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+.gen-param { display: flex; flex-direction: column; gap: 3px; }
+.gen-param-row { display: flex; justify-content: space-between; align-items: center; }
+.gen-param input[type="range"] { -webkit-appearance: none; height: 4px; width: 100%; background: #dce3e3; border-radius: 2px; outline: none; cursor: pointer; }
+.gen-param input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #FF9900; cursor: pointer; }
+.gen-param input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: none; border-radius: 50%; background: #FF9900; cursor: pointer; }
+.gen-val { font-family: "Courier New", monospace; font-size: 11px; font-weight: 700; color: #2C353A; min-width: 44px; text-align: right; }
+
+/* ── Analysis ── */
+.analysis-result { display: none; flex-direction: column; gap: 4px; padding: 8px 10px; background: #ECF1F1; border-radius: 4px; border-left: 3px solid #008184; }
+.analysis-formula { font-family: "Courier New", monospace; font-size: 11px; font-weight: 700; color: #2C353A; word-break: break-all; }
+.analysis-r2txt { font-family: "Courier New", monospace; font-size: 10px; color: #5D6A6B; }
+
+/* ── Right column ── */
+.right-block { background: #fff; border: 1px solid #dce3e3; border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.right-log { flex: 1; min-height: 0; }
+.sig-row { display: flex; justify-content: space-between; align-items: center; }
+.sig-val { font-family: "Courier New", monospace; font-size: clamp(11px,1vw,13px); font-weight: 700; color: #2C353A; }
+
+/* ── Log ── */
+#values-list { overflow-y: auto; display: flex; flex-direction: column; gap: 3px; max-height: 380px; min-height: 80px; }
+#values-list::-webkit-scrollbar { width: 5px; }
+#values-list::-webkit-scrollbar-track { background: #DAE3E3; border-radius: 3px; }
+#values-list::-webkit-scrollbar-thumb { background: #008184; border-radius: 3px; }
+.ventry { display: flex; flex-direction: column; gap: 2px; padding: 4px 7px; background: #ECF1F1; border-radius: 4px; border-left: 3px solid #008184; flex-shrink: 0; }
+.vtime { color: #5D6A6B; font-size: clamp(9px,0.8vw,10px); font-family: "Courier New", monospace; }
+.vchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.vchip { font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,11px); color: #2C353A; border-left: 3px solid; padding-left: 4px; }
+
+/* ── Download ── */
+.dl-btn { margin-top: 6px; width: 100%; padding: 7px 0; background: #fff; border: 1.5px solid #008184; border-radius: 6px; color: #008184; font-family: "Courier New", monospace; font-size: clamp(10px,0.9vw,12px); font-weight: 700; cursor: pointer; transition: background .15s, color .15s; flex-shrink: 0; }
+.dl-btn:hover { background: #008184; color: #fff; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .main { flex-direction: column; }
+  .col-right { max-width: 100%; min-width: 0; }
+  .vdiv { display: none; }
+  .gen-sliders { grid-template-columns: 1fr; }
 }
-
-.container {
-  max-width: 1500px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  color: #008184;
-  font-family: "Courier New", monospace;
-  font-weight: 700;
-}
-
-.conn-btn {
-  padding: 6px 14px;
-  background: #008184;
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-}
-
-.main {
-  display: flex;
-  gap: 14px;
-}
-
-.col-left, .col-right {
-  background: #ECF1F1;
-  padding: 14px;
-  border-radius: 8px;
-}
-
-.chart-wrapper canvas {
-  width: 100%;
+@media (max-width: 480px) {
+  .container { padding: 10px; }
+  .ctrl-bar { gap: 6px 10px; }
+  .tab-btn { font-size: 10px; padding: 8px 4px; }
 }
