@@ -101,8 +101,8 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #DAE3E3; color: 
 .gen-param { display: flex; flex-direction: column; gap: 3px; }
 .gen-param-row { display: flex; justify-content: space-between; align-items: center; }
 .gen-param input[type="range"] { -webkit-appearance: none; height: 4px; width: 100%; background: #dce3e3; border-radius: 2px; outline: none; cursor: pointer; }
-.gen-param input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #FF9900; cursor: pointer; }
-.gen-param input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: none; border-radius: 50%; background: #FF9900; cursor: pointer; }
+.gen-param input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #008184; cursor: pointer; }
+.gen-param input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: none; border-radius: 50%; background: #008184; cursor: pointer; }
 .gen-val { font-family: "Courier New", monospace; font-size: 11px; font-weight: 700; color: #2C353A; min-width: 44px; text-align: right; }
 
 /* ── Analysis ── */
