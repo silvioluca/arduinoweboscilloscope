@@ -145,3 +145,11 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #DAE3E3; color: 
   .col-right { min-width: 100%; }
   .tab-btn { font-size: 10px; padding: 8px 4px; }
 }
+
+/* ── Measure ── */
+.measure-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.meas-cell { background: #ECF1F1; border-radius: 5px; padding: 7px 8px; display: flex; flex-direction: column; gap: 2px; border: 1px solid #dce3e3; }
+.meas-lbl { font-family: "Courier New", monospace; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #5D6A6B; text-transform: uppercase; }
+.meas-val { font-family: "Courier New", monospace; font-size: 13px; font-weight: 700; color: #008184; line-height: 1.1; }
+.meas-unit { font-family: "Courier New", monospace; font-size: 9px; color: #8a9a9a; }
+@media (max-width: 600px) { .measure-grid { grid-template-columns: repeat(2, 1fr); } }

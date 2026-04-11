@@ -294,81 +294,41 @@ if(analysisEnabledEl){analysisEnabledEl.addEventListener('change',()=>{
 if(analysisFitEl)analysisFitEl.addEventListener('change',()=>{if(analysisEnabledEl&&analysisEnabledEl.checked)runFit();});
 if(analysisChannelEl)analysisChannelEl.addEventListener('change',()=>{if(analysisEnabledEl&&analysisEnabledEl.checked){analysisSnapshot=getAnalysisData();runFit();}});
 
-// ── Signal Generator (multi-channel) ─────────────────────────
+// ── Signal Generator ──────────────────────────────────────────
+let genTimer=null,genPhase=0;
 const GEN_TICK=16;
+const genEnabledEl=document.getElementById('gen-enabled');
+const genWaveEl=document.getElementById('gen-wave');
+const genChannelEl=document.getElementById('gen-channel');
 
-// Per-generator state: 3 independent generators
-const generators=[
-  {id:'1',phase:0,timer:null},
-  {id:'2',phase:0,timer:null},
-  {id:'3',phase:0,timer:null},
-];
-
-function calcGenVal(id,phase){
-  const wave=document.getElementById(`gen-wave-${id}`).value;
-  const amp=parseFloat(document.getElementById(`gen-amp-${id}`).value);
-  const off=parseFloat(document.getElementById(`gen-off-${id}`).value);
-  const freq=parseFloat(document.getElementById(`gen-freq-${id}`).value);
-  const duty=parseFloat(document.getElementById(`gen-duty-${id}`).value)/100;
-  const noise=parseFloat(document.getElementById(`gen-noise-${id}`).value);
-  const period=1/freq;
-  const norm=(phase%period)/period;
+function genSample(){
+  const wave=genWaveEl.value,amp=parseFloat(document.getElementById('gen-amp').value),off=parseFloat(document.getElementById('gen-off').value),freq=parseFloat(document.getElementById('gen-freq').value),duty=parseFloat(document.getElementById('gen-duty').value)/100,noise=parseFloat(document.getElementById('gen-noise').value),ch=genChannelEl.value;
+  const period=1/freq;genPhase+=GEN_TICK/1000;const norm=(genPhase%period)/period;
+  let val;
   switch(wave){
-    case'sine':     return off+amp*Math.sin(2*Math.PI*norm);
-    case'square':   return off+amp*(norm<duty?1:-1);
-    case'sawtooth': return off+amp*(2*norm-1);
-    case'triangle': return off+amp*(norm<0.5?4*norm-1:3-4*norm);
-    case'noise':    return off+(Math.random()*2-1)*noise;
-    case'dc':       return off;
-    default:        return off;
+    case'sine':     val=off+amp*Math.sin(2*Math.PI*norm);break;
+    case'square':   val=off+amp*(norm<duty?1:-1);break;
+    case'sawtooth': val=off+amp*(2*norm-1);break;
+    case'triangle': val=off+amp*(norm<0.5?4*norm-1:3-4*norm);break;
+    case'noise':    val=off+(Math.random()*2-1)*noise;break;
+    case'dc':       val=off;break;
+    default:        val=off;
   }
-}
-
-// Shared tick — all active generators fire together so samples merge
-let genSharedTimer=null;
-function genTick(){
   const s={t:Date.now()/1000,v1:null,v2:null,v3:null};
-  let any=false;
-  generators.forEach((g,i)=>{
-    const el=document.getElementById(`gen-enabled-${g.id}`);
-    if(!el||!el.checked)return;
-    const ch=document.getElementById(`gen-channel-${g.id}`).value;
-    const freq=parseFloat(document.getElementById(`gen-freq-${g.id}`).value);
-    const wave=document.getElementById(`gen-wave-${g.id}`).value;
-    if(wave!=='dc'&&wave!=='noise') g.phase+=GEN_TICK/1000;
-    else g.phase+=GEN_TICK/1000;
-    s[ch]=parseFloat(calcGenVal(g.id,g.phase).toFixed(3));
-    any=true;
-  });
-  if(any) pushSample(s);
+  s[ch]=Math.round(Math.max(0,Math.min(1023,val)));
+  pushSample(s);
 }
-function updateSharedTimer(){
-  const anyOn=generators.some(g=>{ const el=document.getElementById(`gen-enabled-${g.id}`); return el&&el.checked; });
-  if(anyOn&&!genSharedTimer){ genSharedTimer=setInterval(genTick,GEN_TICK); }
-  else if(!anyOn&&genSharedTimer){ clearInterval(genSharedTimer);genSharedTimer=null; }
-}
-
-generators.forEach(g=>{
-  const el=document.getElementById(`gen-enabled-${g.id}`);
-  if(el) el.addEventListener('change',()=>{ g.phase=0; updateSharedTimer(); });
-  // wave change → toggle param rows
-  const waveEl=document.getElementById(`gen-wave-${g.id}`);
-  if(waveEl) waveEl.addEventListener('change',()=>{
-    const w=waveEl.value;
-    document.getElementById(`gen-freq-row-${g.id}`).style.display=(w==='dc'||w==='noise')?'none':'';
-    document.getElementById(`gen-duty-row-${g.id}`).style.display=w==='square'?'':'none';
-    document.getElementById(`gen-noise-row-${g.id}`).style.display=w==='noise'?'':'none';
-  });
-});
+function startGen(){if(genTimer)return;genPhase=0;genTimer=setInterval(genSample,GEN_TICK);}
+function stopGen(){if(genTimer){clearInterval(genTimer);genTimer=null;}}
+if(genEnabledEl){genEnabledEl.addEventListener('change',()=>{if(genEnabledEl.checked)startGen();else stopGen();});}
 
 function bindSlider(id,valId,fmt){const sl=document.getElementById(id),vl=document.getElementById(valId);if(sl&&vl)sl.addEventListener('input',()=>{vl.textContent=fmt(sl.value);});}
-generators.forEach(g=>{
-  bindSlider(`gen-amp-${g.id}`,`gen-amp-val-${g.id}`,v=>parseFloat(v).toFixed(0));
-  bindSlider(`gen-off-${g.id}`,`gen-off-val-${g.id}`,v=>parseFloat(v).toFixed(0));
-  bindSlider(`gen-freq-${g.id}`,`gen-freq-val-${g.id}`,v=>`${parseFloat(v).toFixed(1)} Hz`);
-  bindSlider(`gen-duty-${g.id}`,`gen-duty-val-${g.id}`,v=>`${v}%`);
-  bindSlider(`gen-noise-${g.id}`,`gen-noise-val-${g.id}`,v=>Math.round(v));
-});
+bindSlider('gen-amp','gen-amp-val',v=>Math.round(v));
+bindSlider('gen-off','gen-off-val',v=>Math.round(v));
+bindSlider('gen-freq','gen-freq-val',v=>`${parseFloat(v).toFixed(1)} Hz`);
+bindSlider('gen-duty','gen-duty-val',v=>`${v}%`);
+bindSlider('gen-noise','gen-noise-val',v=>Math.round(v));
+if(genWaveEl){genWaveEl.addEventListener('change',()=>{const w=genWaveEl.value;document.getElementById('gen-freq-row').style.display=(w==='dc'||w==='noise')?'none':'';document.getElementById('gen-duty-row').style.display=w==='square'?'':'none';document.getElementById('gen-noise-row').style.display=w==='noise'?'':'none';});}
 
 // ── Web Serial ────────────────────────────────────────────────
 const connBtn=document.getElementById('conn-btn'),connStatus=document.getElementById('conn-status'),baudSel=document.getElementById('baud-sel');
@@ -405,3 +365,118 @@ connBtn.addEventListener('click',()=>{if(serialPort)disconnectSerial();else conn
 // ── Init ──────────────────────────────────────────────────────
 updateChannelToggles();
 refreshChart();
+
+// ── Auto Measure ──────────────────────────────────────────────
+const MEASURE_INTERVAL = 300;
+let measureTimer = null;
+
+function computeMeasurements(samples, chKey) {
+  const vals = samples.map(s => s[chKey]).filter(v => v != null);
+  if (vals.length < 4) return null;
+  const times = samples.filter(s => s[chKey] != null).map(s => s.t);
+  const n = vals.length;
+
+  // Basic
+  let mn = vals[0], mx = vals[0], sum = 0, sum2 = 0;
+  for (const v of vals) { if (v < mn) mn = v; if (v > mx) mx = v; sum += v; sum2 += v * v; }
+  const vpp = mx - mn;
+  const avg = sum / n;
+  const rms = Math.sqrt(sum2 / n);
+  const crest = rms > 0 ? mx / rms : null;
+
+  // Slew rate: max |dv/dt| in ADC/ms
+  let maxSlew = 0;
+  for (let i = 1; i < vals.length; i++) {
+    const dt = (times[i] - times[i - 1]) * 1000;
+    if (dt > 0) { const s = Math.abs(vals[i] - vals[i - 1]) / dt; if (s > maxSlew) maxSlew = s; }
+  }
+
+  // Zero crossings (around mean)
+  let crossings = 0;
+  for (let i = 1; i < vals.length; i++) {
+    if ((vals[i - 1] - avg) * (vals[i] - avg) < 0) crossings++;
+  }
+
+  // Period via zero-crossing pairs (rising)
+  const risingTimes = [];
+  for (let i = 1; i < vals.length; i++) {
+    if (vals[i - 1] < avg && vals[i] >= avg) risingTimes.push(times[i]);
+  }
+  let period = null, freq = null;
+  if (risingTimes.length >= 2) {
+    const periods = [];
+    for (let i = 1; i < risingTimes.length; i++) periods.push((risingTimes[i] - risingTimes[i - 1]) * 1000);
+    period = periods.reduce((a, b) => a + b, 0) / periods.length;
+    freq = period > 0 ? 1000 / period : null;
+  }
+
+  // Duty cycle (fraction of time above mean)
+  const aboveCount = vals.filter(v => v >= avg).length;
+  const duty = (aboveCount / n) * 100;
+
+  // Rise time (10%→90% of first rising edge)
+  const lo = mn + vpp * 0.1, hi = mn + vpp * 0.9;
+  let riseTime = null, fallTime = null;
+  for (let i = 1; i < vals.length - 1; i++) {
+    if (vals[i - 1] < lo && vals[i] >= lo) {
+      // find 90%
+      for (let j = i; j < vals.length; j++) {
+        if (vals[j] >= hi) { riseTime = (times[j] - times[i]) * 1000; break; }
+        if (vals[j] < lo - vpp * 0.05) break;
+      }
+      if (riseTime != null) break;
+    }
+  }
+  for (let i = 1; i < vals.length - 1; i++) {
+    if (vals[i - 1] > hi && vals[i] <= hi) {
+      for (let j = i; j < vals.length; j++) {
+        if (vals[j] <= lo) { fallTime = (times[j] - times[i]) * 1000; break; }
+        if (vals[j] > hi + vpp * 0.05) break;
+      }
+      if (fallTime != null) break;
+    }
+  }
+
+  return { vpp, mn, mx, rms, freq, period, duty, crest, slew: maxSlew, crossings, riseTime, fallTime };
+}
+
+function setM(id, val, decimals = 2) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = val != null ? (typeof val === 'number' ? val.toFixed(decimals) : val) : '—';
+}
+
+function runMeasure() {
+  const chEl = document.getElementById('measure-channel');
+  const ch = chEl ? chEl.value : 'v1';
+  const visible = allSamples.slice(-xSamples);
+  const m = computeMeasurements(visible, ch);
+  if (!m) { ['m-vpp','m-vmin','m-vmax','m-rms','m-freq','m-period','m-duty','m-crest','m-slew','m-cross','m-rise','m-fall'].forEach(id => setM(id, null)); return; }
+  setM('m-vpp', m.vpp, 1);
+  setM('m-vmin', m.mn, 1);
+  setM('m-vmax', m.mx, 1);
+  setM('m-rms', m.rms, 2);
+  setM('m-freq', m.freq, 2);
+  setM('m-period', m.period, 1);
+  setM('m-duty', m.duty, 1);
+  setM('m-crest', m.crest, 3);
+  setM('m-slew', m.slew, 2);
+  setM('m-cross', m.crossings, 0);
+  setM('m-rise', m.riseTime, 2);
+  setM('m-fall', m.fallTime, 2);
+}
+
+function startMeasureTimer() {
+  if (measureTimer) return;
+  measureTimer = setInterval(() => {
+    const autoEl = document.getElementById('measure-auto');
+    if (autoEl && autoEl.checked) runMeasure();
+  }, MEASURE_INTERVAL);
+}
+
+// Start measure timer on load
+startMeasureTimer();
+
+// Also update on channel change
+const measureChEl = document.getElementById('measure-channel');
+if (measureChEl) measureChEl.addEventListener('change', runMeasure);
