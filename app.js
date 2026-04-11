@@ -782,12 +782,15 @@ document.querySelectorAll('.fft-ch-toggle').forEach(cb => {
   const XY_INTERVAL = 50; // 20fps
 
   function resizeXY() {
-    const w = xyCanvas.offsetWidth;
-    const h = xyCanvas.offsetHeight;
-    if (xyCanvas.width !== w || xyCanvas.height !== h) {
-      xyCanvas.width  = w * devicePixelRatio;
-      xyCanvas.height = h * devicePixelRatio;
-      xyCtx.scale(devicePixelRatio, devicePixelRatio);
+    const rect = xyCanvas.parentElement.getBoundingClientRect();
+    const size = Math.round(rect.width);
+    const dpr  = window.devicePixelRatio || 1;
+    if (xyCanvas.width !== size * dpr) {
+      xyCanvas.width  = size * dpr;
+      xyCanvas.height = size * dpr;
+      xyCanvas.style.width  = size + 'px';
+      xyCanvas.style.height = size + 'px';
+      xyCtx.scale(dpr, dpr);
     }
   }
 
@@ -824,8 +827,8 @@ document.querySelectorAll('.fft-ch-toggle').forEach(cb => {
 
   function runXY() {
     resizeXY();
-    const W = xyCanvas.offsetWidth || 300;
-    const H = xyCanvas.offsetHeight || 300;
+    const size = xyCanvas.style.width ? parseInt(xyCanvas.style.width) : (xyCanvas.offsetWidth || 300);
+    const W = size, H = size;
 
     const chX = xyChX.value, chY = xyChY.value;
     const nPoints = parseInt(xyPointsEl.value);
