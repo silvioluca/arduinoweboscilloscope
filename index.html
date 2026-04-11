@@ -110,44 +110,80 @@
         <!-- GENERATOR -->
         <div class="tab-panel" id="tab-gen">
           <div class="tab-content">
-            <div class="tab-row">
-              <label class="ch-label"><input type="checkbox" id="gen-enabled">ENABLED</label>
-              <div class="ctrl-grp"><span class="lbl">WAVE</span>
-                <select id="gen-wave" class="sel">
-                  <option value="sine">∿ Sine</option>
-                  <option value="square">⊓ Square</option>
-                  <option value="sawtooth">/ Sawtooth</option>
-                  <option value="triangle">∧ Triangle</option>
-                  <option value="noise">≋ Noise</option>
-                  <option value="dc">— DC</option>
-                </select>
+
+            <!-- Generator helper macro repeated 3x -->
+            <!-- GEN 1 -->
+            <div class="section" style="gap:8px">
+              <div class="tab-row">
+                <label class="ch-label"><input type="checkbox" id="gen-enabled-1">GEN 1</label>
+                <div class="ctrl-grp"><span class="lbl">WAVE</span>
+                  <select id="gen-wave-1" class="sel">
+                    <option value="sine">∿ Sine</option><option value="square">⊓ Square</option>
+                    <option value="sawtooth">/ Sawtooth</option><option value="triangle">∧ Triangle</option>
+                    <option value="noise">≋ Noise</option><option value="dc">— DC</option>
+                  </select>
+                </div>
+                <div class="ctrl-grp"><span class="lbl">→</span>
+                  <select id="gen-channel-1" class="sel"><option value="v1">CH1</option><option value="v2">CH2</option><option value="v3">CH3</option></select>
+                </div>
               </div>
-              <div class="ctrl-grp"><span class="lbl">OUTPUT</span>
-                <select id="gen-channel" class="sel"><option value="v1">CH1</option><option value="v2">CH2</option><option value="v3">CH3</option></select>
-              </div>
-            </div>
-            <div class="gen-sliders">
-              <div class="gen-param">
-                <div class="gen-param-row"><span class="lbl">AMPLITUDE</span><span class="gen-val" id="gen-amp-val">256</span></div>
-                <input type="range" id="gen-amp" min="1" max="512" value="256">
-              </div>
-              <div class="gen-param">
-                <div class="gen-param-row"><span class="lbl">OFFSET</span><span class="gen-val" id="gen-off-val">512</span></div>
-                <input type="range" id="gen-off" min="0" max="1023" value="512">
-              </div>
-              <div class="gen-param" id="gen-freq-row">
-                <div class="gen-param-row"><span class="lbl">FREQUENCY</span><span class="gen-val" id="gen-freq-val">1.0 Hz</span></div>
-                <input type="range" id="gen-freq" min="0.1" max="20" step="0.1" value="1">
-              </div>
-              <div class="gen-param" id="gen-duty-row" style="display:none">
-                <div class="gen-param-row"><span class="lbl">DUTY CYCLE</span><span class="gen-val" id="gen-duty-val">50%</span></div>
-                <input type="range" id="gen-duty" min="1" max="99" value="50">
-              </div>
-              <div class="gen-param" id="gen-noise-row" style="display:none">
-                <div class="gen-param-row"><span class="lbl">NOISE LEVEL</span><span class="gen-val" id="gen-noise-val">50</span></div>
-                <input type="range" id="gen-noise" min="1" max="256" value="50">
+              <div class="gen-sliders">
+                <div class="gen-param"><div class="gen-param-row"><span class="lbl">AMPLITUDE</span><span class="gen-val" id="gen-amp-val-1">256</span></div><input type="range" id="gen-amp-1" min="1" max="1024" value="256"></div>
+                <div class="gen-param"><div class="gen-param-row"><span class="lbl">OFFSET</span><span class="gen-val" id="gen-off-val-1">0</span></div><input type="range" id="gen-off-1" min="-1024" max="1024" value="0"></div>
+                <div class="gen-param" id="gen-freq-row-1"><div class="gen-param-row"><span class="lbl">FREQUENCY</span><span class="gen-val" id="gen-freq-val-1">1.0 Hz</span></div><input type="range" id="gen-freq-1" min="0.1" max="20" step="0.1" value="1"></div>
+                <div class="gen-param" id="gen-duty-row-1" style="display:none"><div class="gen-param-row"><span class="lbl">DUTY</span><span class="gen-val" id="gen-duty-val-1">50%</span></div><input type="range" id="gen-duty-1" min="1" max="99" value="50"></div>
+                <div class="gen-param" id="gen-noise-row-1" style="display:none"><div class="gen-param-row"><span class="lbl">NOISE</span><span class="gen-val" id="gen-noise-val-1">50</span></div><input type="range" id="gen-noise-1" min="1" max="512" value="50"></div>
               </div>
             </div>
+
+            <!-- GEN 2 -->
+            <div class="section" style="gap:8px">
+              <div class="tab-row">
+                <label class="ch-label"><input type="checkbox" id="gen-enabled-2">GEN 2</label>
+                <div class="ctrl-grp"><span class="lbl">WAVE</span>
+                  <select id="gen-wave-2" class="sel">
+                    <option value="sine">∿ Sine</option><option value="square">⊓ Square</option>
+                    <option value="sawtooth">/ Sawtooth</option><option value="triangle">∧ Triangle</option>
+                    <option value="noise">≋ Noise</option><option value="dc">— DC</option>
+                  </select>
+                </div>
+                <div class="ctrl-grp"><span class="lbl">→</span>
+                  <select id="gen-channel-2" class="sel"><option value="v1">CH1</option><option value="v2" selected>CH2</option><option value="v3">CH3</option></select>
+                </div>
+              </div>
+              <div class="gen-sliders">
+                <div class="gen-param"><div class="gen-param-row"><span class="lbl">AMPLITUDE</span><span class="gen-val" id="gen-amp-val-2">256</span></div><input type="range" id="gen-amp-2" min="1" max="1024" value="256"></div>
+                <div class="gen-param"><div class="gen-param-row"><span class="lbl">OFFSET</span><span class="gen-val" id="gen-off-val-2">0</span></div><input type="range" id="gen-off-2" min="-1024" max="1024" value="0"></div>
+                <div class="gen-param" id="gen-freq-row-2"><div class="gen-param-row"><span class="lbl">FREQUENCY</span><span class="gen-val" id="gen-freq-val-2">2.0 Hz</span></div><input type="range" id="gen-freq-2" min="0.1" max="20" step="0.1" value="2"></div>
+                <div class="gen-param" id="gen-duty-row-2" style="display:none"><div class="gen-param-row"><span class="lbl">DUTY</span><span class="gen-val" id="gen-duty-val-2">50%</span></div><input type="range" id="gen-duty-2" min="1" max="99" value="50"></div>
+                <div class="gen-param" id="gen-noise-row-2" style="display:none"><div class="gen-param-row"><span class="lbl">NOISE</span><span class="gen-val" id="gen-noise-val-2">50</span></div><input type="range" id="gen-noise-2" min="1" max="512" value="50"></div>
+              </div>
+            </div>
+
+            <!-- GEN 3 -->
+            <div class="section" style="gap:8px">
+              <div class="tab-row">
+                <label class="ch-label"><input type="checkbox" id="gen-enabled-3">GEN 3</label>
+                <div class="ctrl-grp"><span class="lbl">WAVE</span>
+                  <select id="gen-wave-3" class="sel">
+                    <option value="sine">∿ Sine</option><option value="square">⊓ Square</option>
+                    <option value="sawtooth">/ Sawtooth</option><option value="triangle">∧ Triangle</option>
+                    <option value="noise">≋ Noise</option><option value="dc">— DC</option>
+                  </select>
+                </div>
+                <div class="ctrl-grp"><span class="lbl">→</span>
+                  <select id="gen-channel-3" class="sel"><option value="v1">CH1</option><option value="v2">CH2</option><option value="v3" selected>CH3</option></select>
+                </div>
+              </div>
+              <div class="gen-sliders">
+                <div class="gen-param"><div class="gen-param-row"><span class="lbl">AMPLITUDE</span><span class="gen-val" id="gen-amp-val-3">256</span></div><input type="range" id="gen-amp-3" min="1" max="1024" value="256"></div>
+                <div class="gen-param"><div class="gen-param-row"><span class="lbl">OFFSET</span><span class="gen-val" id="gen-off-val-3">0</span></div><input type="range" id="gen-off-3" min="-1024" max="1024" value="0"></div>
+                <div class="gen-param" id="gen-freq-row-3"><div class="gen-param-row"><span class="lbl">FREQUENCY</span><span class="gen-val" id="gen-freq-val-3">3.0 Hz</span></div><input type="range" id="gen-freq-3" min="0.1" max="20" step="0.1" value="3"></div>
+                <div class="gen-param" id="gen-duty-row-3" style="display:none"><div class="gen-param-row"><span class="lbl">DUTY</span><span class="gen-val" id="gen-duty-val-3">50%</span></div><input type="range" id="gen-duty-3" min="1" max="99" value="50"></div>
+                <div class="gen-param" id="gen-noise-row-3" style="display:none"><div class="gen-param-row"><span class="lbl">NOISE</span><span class="gen-val" id="gen-noise-val-3">50</span></div><input type="range" id="gen-noise-3" min="1" max="512" value="50"></div>
+              </div>
+            </div>
+
           </div>
         </div>
 

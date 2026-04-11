@@ -294,41 +294,81 @@ if(analysisEnabledEl){analysisEnabledEl.addEventListener('change',()=>{
 if(analysisFitEl)analysisFitEl.addEventListener('change',()=>{if(analysisEnabledEl&&analysisEnabledEl.checked)runFit();});
 if(analysisChannelEl)analysisChannelEl.addEventListener('change',()=>{if(analysisEnabledEl&&analysisEnabledEl.checked){analysisSnapshot=getAnalysisData();runFit();}});
 
-// ── Signal Generator ──────────────────────────────────────────
-let genTimer=null,genPhase=0;
+// ── Signal Generator (multi-channel) ─────────────────────────
 const GEN_TICK=16;
-const genEnabledEl=document.getElementById('gen-enabled');
-const genWaveEl=document.getElementById('gen-wave');
-const genChannelEl=document.getElementById('gen-channel');
 
-function genSample(){
-  const wave=genWaveEl.value,amp=parseFloat(document.getElementById('gen-amp').value),off=parseFloat(document.getElementById('gen-off').value),freq=parseFloat(document.getElementById('gen-freq').value),duty=parseFloat(document.getElementById('gen-duty').value)/100,noise=parseFloat(document.getElementById('gen-noise').value),ch=genChannelEl.value;
-  const period=1/freq;genPhase+=GEN_TICK/1000;const norm=(genPhase%period)/period;
-  let val;
+// Per-generator state: 3 independent generators
+const generators=[
+  {id:'1',phase:0,timer:null},
+  {id:'2',phase:0,timer:null},
+  {id:'3',phase:0,timer:null},
+];
+
+function calcGenVal(id,phase){
+  const wave=document.getElementById(`gen-wave-${id}`).value;
+  const amp=parseFloat(document.getElementById(`gen-amp-${id}`).value);
+  const off=parseFloat(document.getElementById(`gen-off-${id}`).value);
+  const freq=parseFloat(document.getElementById(`gen-freq-${id}`).value);
+  const duty=parseFloat(document.getElementById(`gen-duty-${id}`).value)/100;
+  const noise=parseFloat(document.getElementById(`gen-noise-${id}`).value);
+  const period=1/freq;
+  const norm=(phase%period)/period;
   switch(wave){
-    case'sine':     val=off+amp*Math.sin(2*Math.PI*norm);break;
-    case'square':   val=off+amp*(norm<duty?1:-1);break;
-    case'sawtooth': val=off+amp*(2*norm-1);break;
-    case'triangle': val=off+amp*(norm<0.5?4*norm-1:3-4*norm);break;
-    case'noise':    val=off+(Math.random()*2-1)*noise;break;
-    case'dc':       val=off;break;
-    default:        val=off;
+    case'sine':     return off+amp*Math.sin(2*Math.PI*norm);
+    case'square':   return off+amp*(norm<duty?1:-1);
+    case'sawtooth': return off+amp*(2*norm-1);
+    case'triangle': return off+amp*(norm<0.5?4*norm-1:3-4*norm);
+    case'noise':    return off+(Math.random()*2-1)*noise;
+    case'dc':       return off;
+    default:        return off;
   }
-  const s={t:Date.now()/1000,v1:null,v2:null,v3:null};
-  s[ch]=Math.round(Math.max(0,Math.min(1023,val)));
-  pushSample(s);
 }
-function startGen(){if(genTimer)return;genPhase=0;genTimer=setInterval(genSample,GEN_TICK);}
-function stopGen(){if(genTimer){clearInterval(genTimer);genTimer=null;}}
-if(genEnabledEl){genEnabledEl.addEventListener('change',()=>{if(genEnabledEl.checked)startGen();else stopGen();});}
+
+// Shared tick — all active generators fire together so samples merge
+let genSharedTimer=null;
+function genTick(){
+  const s={t:Date.now()/1000,v1:null,v2:null,v3:null};
+  let any=false;
+  generators.forEach((g,i)=>{
+    const el=document.getElementById(`gen-enabled-${g.id}`);
+    if(!el||!el.checked)return;
+    const ch=document.getElementById(`gen-channel-${g.id}`).value;
+    const freq=parseFloat(document.getElementById(`gen-freq-${g.id}`).value);
+    const wave=document.getElementById(`gen-wave-${g.id}`).value;
+    if(wave!=='dc'&&wave!=='noise') g.phase+=GEN_TICK/1000;
+    else g.phase+=GEN_TICK/1000;
+    s[ch]=parseFloat(calcGenVal(g.id,g.phase).toFixed(3));
+    any=true;
+  });
+  if(any) pushSample(s);
+}
+function updateSharedTimer(){
+  const anyOn=generators.some(g=>{ const el=document.getElementById(`gen-enabled-${g.id}`); return el&&el.checked; });
+  if(anyOn&&!genSharedTimer){ genSharedTimer=setInterval(genTick,GEN_TICK); }
+  else if(!anyOn&&genSharedTimer){ clearInterval(genSharedTimer);genSharedTimer=null; }
+}
+
+generators.forEach(g=>{
+  const el=document.getElementById(`gen-enabled-${g.id}`);
+  if(el) el.addEventListener('change',()=>{ g.phase=0; updateSharedTimer(); });
+  // wave change → toggle param rows
+  const waveEl=document.getElementById(`gen-wave-${g.id}`);
+  if(waveEl) waveEl.addEventListener('change',()=>{
+    const w=waveEl.value;
+    document.getElementById(`gen-freq-row-${g.id}`).style.display=(w==='dc'||w==='noise')?'none':'';
+    document.getElementById(`gen-duty-row-${g.id}`).style.display=w==='square'?'':'none';
+    document.getElementById(`gen-noise-row-${g.id}`).style.display=w==='noise'?'':'none';
+  });
+});
 
 function bindSlider(id,valId,fmt){const sl=document.getElementById(id),vl=document.getElementById(valId);if(sl&&vl)sl.addEventListener('input',()=>{vl.textContent=fmt(sl.value);});}
-bindSlider('gen-amp','gen-amp-val',v=>Math.round(v));
-bindSlider('gen-off','gen-off-val',v=>Math.round(v));
-bindSlider('gen-freq','gen-freq-val',v=>`${parseFloat(v).toFixed(1)} Hz`);
-bindSlider('gen-duty','gen-duty-val',v=>`${v}%`);
-bindSlider('gen-noise','gen-noise-val',v=>Math.round(v));
-if(genWaveEl){genWaveEl.addEventListener('change',()=>{const w=genWaveEl.value;document.getElementById('gen-freq-row').style.display=(w==='dc'||w==='noise')?'none':'';document.getElementById('gen-duty-row').style.display=w==='square'?'':'none';document.getElementById('gen-noise-row').style.display=w==='noise'?'':'none';});}
+generators.forEach(g=>{
+  bindSlider(`gen-amp-${g.id}`,`gen-amp-val-${g.id}`,v=>parseFloat(v).toFixed(0));
+  bindSlider(`gen-off-${g.id}`,`gen-off-val-${g.id}`,v=>parseFloat(v).toFixed(0));
+  bindSlider(`gen-freq-${g.id}`,`gen-freq-val-${g.id}`,v=>`${parseFloat(v).toFixed(1)} Hz`);
+  bindSlider(`gen-duty-${g.id}`,`gen-duty-val-${g.id}`,v=>`${v}%`);
+  bindSlider(`gen-noise-${g.id}`,`gen-noise-val-${g.id}`,v=>Math.round(v));
+});
 
 // ── Web Serial ────────────────────────────────────────────────
 const connBtn=document.getElementById('conn-btn'),connStatus=document.getElementById('conn-status'),baudSel=document.getElementById('baud-sel');
