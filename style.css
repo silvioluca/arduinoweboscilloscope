@@ -153,3 +153,24 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #DAE3E3; color: 
 .meas-val { font-family: "Courier New", monospace; font-size: 13px; font-weight: 700; color: #008184; line-height: 1.1; }
 .meas-unit { font-family: "Courier New", monospace; font-size: 9px; color: #8a9a9a; }
 @media (max-width: 600px) { .measure-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── Generator multi-channel ── */
+.gen-ch-list { display: flex; flex-direction: column; gap: 8px; }
+.gen-ch-strip { border: 1px solid #dce3e3; border-radius: 6px; padding: 8px 10px; background: #f9fbfb; }
+.gen-ch-hdr { margin-bottom: 6px; display: flex; align-items: center; }
+.gen-ch-params { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 16px; }
+@media (max-width: 600px) { .gen-ch-params { grid-template-columns: 1fr 1fr; } }
+
+/* ── Measure per-channel ── */
+.meas-ch-block { padding: 8px 8px 8px 10px; border-radius: 4px; }
+
+/* ── FFT ── */
+.fft-wrapper canvas { max-height: 200px; background: #fff; border-radius: 4px; }
+.fft-info-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.fft-info-cell { background: #ECF1F1; border-radius: 5px; padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; border: 1px solid #dce3e3; flex: 1; min-width: 80px; }
+.fft-ch-info { padding: 6px 8px 6px 10px; border-radius: 4px; display: flex; flex-direction: column; gap: 4px; }
+.fft-ch-info-title { font-family: "Courier New", monospace; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+
+/* ── XY Plot ── */
+.xy-wrapper { position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 380px; background: #fff; border-radius: 4px; overflow: hidden; }
+.xy-wrapper canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }

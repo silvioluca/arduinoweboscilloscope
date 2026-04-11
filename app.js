@@ -294,41 +294,104 @@ if(analysisEnabledEl){analysisEnabledEl.addEventListener('change',()=>{
 if(analysisFitEl)analysisFitEl.addEventListener('change',()=>{if(analysisEnabledEl&&analysisEnabledEl.checked)runFit();});
 if(analysisChannelEl)analysisChannelEl.addEventListener('change',()=>{if(analysisEnabledEl&&analysisEnabledEl.checked){analysisSnapshot=getAnalysisData();runFit();}});
 
-// ── Signal Generator ──────────────────────────────────────────
-let genTimer=null,genPhase=0;
-const GEN_TICK=16;
-const genEnabledEl=document.getElementById('gen-enabled');
-const genWaveEl=document.getElementById('gen-wave');
-const genChannelEl=document.getElementById('gen-channel');
+// ── Signal Generator (multi-channel, per-channel wave) ────────
+const GEN_TICK = 16;
+const genEnabledEl = document.getElementById('gen-enabled');
 
-function genSample(){
-  const wave=genWaveEl.value,amp=parseFloat(document.getElementById('gen-amp').value),off=parseFloat(document.getElementById('gen-off').value),freq=parseFloat(document.getElementById('gen-freq').value),duty=parseFloat(document.getElementById('gen-duty').value)/100,noise=parseFloat(document.getElementById('gen-noise').value),ch=genChannelEl.value;
-  const period=1/freq;genPhase+=GEN_TICK/1000;const norm=(genPhase%period)/period;
-  let val;
-  switch(wave){
-    case'sine':     val=off+amp*Math.sin(2*Math.PI*norm);break;
-    case'square':   val=off+amp*(norm<duty?1:-1);break;
-    case'sawtooth': val=off+amp*(2*norm-1);break;
-    case'triangle': val=off+amp*(norm<0.5?4*norm-1:3-4*norm);break;
-    case'noise':    val=off+(Math.random()*2-1)*noise;break;
-    case'dc':       val=off;break;
-    default:        val=off;
+// Per-channel state: phase
+const genPhases = { v1: 0, v2: 0, v3: 0 };
+// Which channels are active in generator
+const genChActive = { v1: true, v2: false, v3: false };
+
+let genTimer = null;
+
+function getChParam(cls, ch) {
+  const el = document.querySelector(`.${cls}[data-ch="${ch}"]`);
+  return el ? parseFloat(el.value) : 0;
+}
+function getChWave(ch) {
+  const el = document.querySelector(`.gen-wave[data-ch="${ch}"]`);
+  return el ? el.value : 'sine';
+}
+
+function computeWaveVal(wave, phase, amp, off, freq, duty, noise) {
+  const period = 1 / freq;
+  const norm = (phase % period) / period;
+  switch (wave) {
+    case 'sine':     return off + amp * Math.sin(2 * Math.PI * norm);
+    case 'square':   return off + amp * (norm < duty / 100 ? 1 : -1);
+    case 'sawtooth': return off + amp * (2 * norm - 1);
+    case 'triangle': return off + amp * (norm < 0.5 ? 4 * norm - 1 : 3 - 4 * norm);
+    case 'noise':    return off + (Math.random() * 2 - 1) * noise;
+    case 'dc':       return off;
+    default:         return off;
   }
-  const s={t:Date.now()/1000,v1:null,v2:null,v3:null};
-  s[ch]=Math.round(Math.max(0,Math.min(1023,val)));
+}
+
+function genSample() {
+  const s = { t: Date.now() / 1000, v1: null, v2: null, v3: null };
+  ['v1','v2','v3'].forEach(ch => {
+    if (!genChActive[ch]) return;
+    const wave  = getChWave(ch);
+    const amp   = getChParam('gen-amp', ch);
+    const off   = getChParam('gen-off', ch);
+    const freq  = Math.max(0.01, getChParam('gen-freq', ch));
+    const duty  = getChParam('gen-duty', ch);
+    const noise = getChParam('gen-noise', ch);
+    const phaseOffsetDeg = getChParam('gen-phase', ch);
+    const period = 1 / freq;
+    genPhases[ch] += GEN_TICK / 1000;
+    const phaseShifted = genPhases[ch] + (phaseOffsetDeg / 360) * period;
+    s[ch] = computeWaveVal(wave, phaseShifted, amp, off, freq, duty, noise);
+  });
   pushSample(s);
 }
-function startGen(){if(genTimer)return;genPhase=0;genTimer=setInterval(genSample,GEN_TICK);}
-function stopGen(){if(genTimer){clearInterval(genTimer);genTimer=null;}}
-if(genEnabledEl){genEnabledEl.addEventListener('change',()=>{if(genEnabledEl.checked)startGen();else stopGen();});}
 
-function bindSlider(id,valId,fmt){const sl=document.getElementById(id),vl=document.getElementById(valId);if(sl&&vl)sl.addEventListener('input',()=>{vl.textContent=fmt(sl.value);});}
-bindSlider('gen-amp','gen-amp-val',v=>Math.round(v));
-bindSlider('gen-off','gen-off-val',v=>Math.round(v));
-bindSlider('gen-freq','gen-freq-val',v=>`${parseFloat(v).toFixed(1)} Hz`);
-bindSlider('gen-duty','gen-duty-val',v=>`${v}%`);
-bindSlider('gen-noise','gen-noise-val',v=>Math.round(v));
-if(genWaveEl){genWaveEl.addEventListener('change',()=>{const w=genWaveEl.value;document.getElementById('gen-freq-row').style.display=(w==='dc'||w==='noise')?'none':'';document.getElementById('gen-duty-row').style.display=w==='square'?'':'none';document.getElementById('gen-noise-row').style.display=w==='noise'?'':'none';});}
+function startGen() { if (genTimer) return; Object.keys(genPhases).forEach(k => genPhases[k] = 0); genTimer = setInterval(genSample, GEN_TICK); }
+function stopGen()  { if (genTimer) { clearInterval(genTimer); genTimer = null; } }
+
+if (genEnabledEl) genEnabledEl.addEventListener('change', () => { if (genEnabledEl.checked) startGen(); else stopGen(); });
+
+// Toggle channel strips via checkbox
+document.querySelectorAll('.gen-ch-toggle').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const ch = cb.dataset.ch;
+    genChActive[ch] = cb.checked;
+    const strip = document.querySelector(`.gen-ch-strip[data-ch="${ch}"]`);
+    if (strip) strip.style.opacity = cb.checked ? '1' : '0.45';
+  });
+});
+
+// +CH buttons to show strip
+document.querySelectorAll('.gen-add-ch').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const ch = btn.dataset.ch;
+    const strip = document.querySelector(`.gen-ch-strip[data-ch="${ch}"]`);
+    if (strip) { strip.style.display = ''; genChActive[ch] = true; const cb = strip.querySelector('.gen-ch-toggle'); if (cb) cb.checked = true; }
+  });
+});
+
+// Per-ch wave selector: show/hide duty/noise/freq rows for that channel
+document.querySelectorAll('.gen-wave').forEach(sel => {
+  sel.addEventListener('change', () => {
+    const ch = sel.dataset.ch;
+    const w = sel.value;
+    const freq  = document.querySelector(`.gen-freq-param-${ch}`);
+    const duty  = document.querySelector(`.gen-duty-param-${ch}`);
+    const noise = document.querySelector(`.gen-noise-param-${ch}`);
+    if (freq)  freq.style.display  = (w === 'dc' || w === 'noise') ? 'none' : '';
+    if (duty)  duty.style.display  = w === 'square' ? '' : 'none';
+    if (noise) noise.style.display = w === 'noise'  ? '' : 'none';
+  });
+});
+
+// Update display labels for all per-ch sliders
+document.querySelectorAll('.gen-amp').forEach(sl => sl.addEventListener('input', () => { const v = document.getElementById(`gen-amp-val-${sl.dataset.ch}`); if (v) v.textContent = Math.round(sl.value); }));
+document.querySelectorAll('.gen-off').forEach(sl => sl.addEventListener('input', () => { const v = document.getElementById(`gen-off-val-${sl.dataset.ch}`); if (v) v.textContent = Math.round(sl.value); }));
+document.querySelectorAll('.gen-freq').forEach(sl => sl.addEventListener('input', () => { const v = document.getElementById(`gen-freq-val-${sl.dataset.ch}`); if (v) v.textContent = `${parseFloat(sl.value).toFixed(1)} Hz`; }));
+document.querySelectorAll('.gen-duty').forEach(sl => sl.addEventListener('input', () => { const v = document.getElementById(`gen-duty-val-${sl.dataset.ch}`); if (v) v.textContent = `${sl.value}%`; }));
+document.querySelectorAll('.gen-noise').forEach(sl => sl.addEventListener('input', () => { const v = document.getElementById(`gen-noise-val-${sl.dataset.ch}`); if (v) v.textContent = Math.round(sl.value); }));
+document.querySelectorAll('.gen-phase').forEach(sl => sl.addEventListener('input', () => { const v = document.getElementById(`gen-phase-val-${sl.dataset.ch}`); if (v) v.textContent = `${sl.value}°`; }));
 
 // ── Web Serial ────────────────────────────────────────────────
 const connBtn=document.getElementById('conn-btn'),connStatus=document.getElementById('conn-status'),baudSel=document.getElementById('baud-sel');
@@ -366,73 +429,57 @@ connBtn.addEventListener('click',()=>{if(serialPort)disconnectSerial();else conn
 updateChannelToggles();
 refreshChart();
 
-// ── Auto Measure ──────────────────────────────────────────────
+// ── Auto Measure (per-channel) ────────────────────────────────
 const MEASURE_INTERVAL = 300;
 let measureTimer = null;
 
 function computeMeasurements(samples, chKey) {
-  const vals = samples.map(s => s[chKey]).filter(v => v != null);
-  if (vals.length < 4) return null;
-  const times = samples.filter(s => s[chKey] != null).map(s => s.t);
+  const pairs = samples.filter(s => s[chKey] != null);
+  if (pairs.length < 4) return null;
+  const vals  = pairs.map(s => s[chKey]);
+  const times = pairs.map(s => s.t);
   const n = vals.length;
 
-  // Basic
   let mn = vals[0], mx = vals[0], sum = 0, sum2 = 0;
   for (const v of vals) { if (v < mn) mn = v; if (v > mx) mx = v; sum += v; sum2 += v * v; }
-  const vpp = mx - mn;
-  const avg = sum / n;
-  const rms = Math.sqrt(sum2 / n);
-  const crest = rms > 0 ? mx / rms : null;
+  const vpp  = mx - mn;
+  const avg  = sum / n;
+  const rms  = Math.sqrt(sum2 / n);
+  const crest = rms > 0 ? Math.abs(mx) / rms : null;
 
-  // Slew rate: max |dv/dt| in ADC/ms
   let maxSlew = 0;
   for (let i = 1; i < vals.length; i++) {
-    const dt = (times[i] - times[i - 1]) * 1000;
-    if (dt > 0) { const s = Math.abs(vals[i] - vals[i - 1]) / dt; if (s > maxSlew) maxSlew = s; }
+    const dt = (times[i] - times[i-1]) * 1000;
+    if (dt > 0) { const s = Math.abs(vals[i] - vals[i-1]) / dt; if (s > maxSlew) maxSlew = s; }
   }
 
-  // Zero crossings (around mean)
   let crossings = 0;
-  for (let i = 1; i < vals.length; i++) {
-    if ((vals[i - 1] - avg) * (vals[i] - avg) < 0) crossings++;
-  }
+  for (let i = 1; i < vals.length; i++) { if ((vals[i-1]-avg)*(vals[i]-avg) < 0) crossings++; }
 
-  // Period via zero-crossing pairs (rising)
   const risingTimes = [];
-  for (let i = 1; i < vals.length; i++) {
-    if (vals[i - 1] < avg && vals[i] >= avg) risingTimes.push(times[i]);
-  }
+  for (let i = 1; i < vals.length; i++) { if (vals[i-1] < avg && vals[i] >= avg) risingTimes.push(times[i]); }
   let period = null, freq = null;
   if (risingTimes.length >= 2) {
     const periods = [];
-    for (let i = 1; i < risingTimes.length; i++) periods.push((risingTimes[i] - risingTimes[i - 1]) * 1000);
-    period = periods.reduce((a, b) => a + b, 0) / periods.length;
+    for (let i = 1; i < risingTimes.length; i++) periods.push((risingTimes[i] - risingTimes[i-1]) * 1000);
+    period = periods.reduce((a,b) => a+b, 0) / periods.length;
     freq = period > 0 ? 1000 / period : null;
   }
 
-  // Duty cycle (fraction of time above mean)
   const aboveCount = vals.filter(v => v >= avg).length;
   const duty = (aboveCount / n) * 100;
 
-  // Rise time (10%→90% of first rising edge)
   const lo = mn + vpp * 0.1, hi = mn + vpp * 0.9;
   let riseTime = null, fallTime = null;
   for (let i = 1; i < vals.length - 1; i++) {
-    if (vals[i - 1] < lo && vals[i] >= lo) {
-      // find 90%
-      for (let j = i; j < vals.length; j++) {
-        if (vals[j] >= hi) { riseTime = (times[j] - times[i]) * 1000; break; }
-        if (vals[j] < lo - vpp * 0.05) break;
-      }
+    if (vals[i-1] < lo && vals[i] >= lo) {
+      for (let j = i; j < vals.length; j++) { if (vals[j] >= hi) { riseTime = (times[j]-times[i])*1000; break; } if (vals[j] < lo-vpp*0.05) break; }
       if (riseTime != null) break;
     }
   }
   for (let i = 1; i < vals.length - 1; i++) {
-    if (vals[i - 1] > hi && vals[i] <= hi) {
-      for (let j = i; j < vals.length; j++) {
-        if (vals[j] <= lo) { fallTime = (times[j] - times[i]) * 1000; break; }
-        if (vals[j] > hi + vpp * 0.05) break;
-      }
+    if (vals[i-1] > hi && vals[i] <= hi) {
+      for (let j = i; j < vals.length; j++) { if (vals[j] <= lo) { fallTime = (times[j]-times[i])*1000; break; } if (vals[j] > hi+vpp*0.05) break; }
       if (fallTime != null) break;
     }
   }
@@ -447,23 +494,37 @@ function setM(id, val, decimals = 2) {
 }
 
 function runMeasure() {
-  const chEl = document.getElementById('measure-channel');
-  const ch = chEl ? chEl.value : 'v1';
   const visible = allSamples.slice(-xSamples);
-  const m = computeMeasurements(visible, ch);
-  if (!m) { ['m-vpp','m-vmin','m-vmax','m-rms','m-freq','m-period','m-duty','m-crest','m-slew','m-cross','m-rise','m-fall'].forEach(id => setM(id, null)); return; }
-  setM('m-vpp', m.vpp, 1);
-  setM('m-vmin', m.mn, 1);
-  setM('m-vmax', m.mx, 1);
-  setM('m-rms', m.rms, 2);
-  setM('m-freq', m.freq, 2);
-  setM('m-period', m.period, 1);
-  setM('m-duty', m.duty, 1);
-  setM('m-crest', m.crest, 3);
-  setM('m-slew', m.slew, 2);
-  setM('m-cross', m.crossings, 0);
-  setM('m-rise', m.riseTime, 2);
-  setM('m-fall', m.fallTime, 2);
+  let anyActive = false;
+  ['v1','v2','v3'].forEach(ch => {
+    const block = document.getElementById(`meas-block-${ch}`);
+    if (!block) return;
+    // auto show/hide based on whether channel has data
+    const hasData = channelActive[ch] && visible.some(s => s[ch] != null);
+    block.style.display = hasData ? '' : 'none';
+    if (!hasData) return;
+    anyActive = true;
+    const m = computeMeasurements(visible, ch);
+    const sfx = `-${ch}`;
+    if (!m) {
+      ['m-vpp','m-vmin','m-vmax','m-rms','m-freq','m-period','m-duty','m-crest','m-slew','m-cross','m-rise','m-fall'].forEach(id => setM(id+sfx, null));
+      return;
+    }
+    setM('m-vpp'+sfx,    m.vpp,       1);
+    setM('m-vmin'+sfx,   m.mn,        1);
+    setM('m-vmax'+sfx,   m.mx,        1);
+    setM('m-rms'+sfx,    m.rms,       2);
+    setM('m-freq'+sfx,   m.freq,      2);
+    setM('m-period'+sfx, m.period,    1);
+    setM('m-duty'+sfx,   m.duty,      1);
+    setM('m-crest'+sfx,  m.crest,     3);
+    setM('m-slew'+sfx,   m.slew,      2);
+    setM('m-cross'+sfx,  m.crossings, 0);
+    setM('m-rise'+sfx,   m.riseTime,  2);
+    setM('m-fall'+sfx,   m.fallTime,  2);
+  });
+  const hint = document.getElementById('meas-empty-hint');
+  if (hint) hint.style.display = anyActive ? 'none' : '';
 }
 
 function startMeasureTimer() {
@@ -474,9 +535,411 @@ function startMeasureTimer() {
   }, MEASURE_INTERVAL);
 }
 
-// Start measure timer on load
 startMeasureTimer();
 
-// Also update on channel change
-const measureChEl = document.getElementById('measure-channel');
-if (measureChEl) measureChEl.addEventListener('change', runMeasure);
+// ── FFT ───────────────────────────────────────────────────────
+
+// Cooley-Tukey radix-2 FFT (in-place, complex)
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len;
+    const wRe = Math.cos(ang), wIm = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let curRe = 1, curIm = 0;
+      for (let j = 0; j < len / 2; j++) {
+        const uRe = re[i+j], uIm = im[i+j];
+        const vRe = re[i+j+len/2]*curRe - im[i+j+len/2]*curIm;
+        const vIm = re[i+j+len/2]*curIm + im[i+j+len/2]*curRe;
+        re[i+j] = uRe+vRe; im[i+j] = uIm+vIm;
+        re[i+j+len/2] = uRe-vRe; im[i+j+len/2] = uIm-vIm;
+        [curRe, curIm] = [curRe*wRe - curIm*wIm, curRe*wIm + curIm*wRe];
+      }
+    }
+  }
+}
+
+function applyWindow(signal, type) {
+  const n = signal.length;
+  return signal.map((v, i) => {
+    let w = 1;
+    switch (type) {
+      case 'hanning':     w = 0.5 * (1 - Math.cos(2*Math.PI*i/(n-1))); break;
+      case 'hamming':     w = 0.54 - 0.46 * Math.cos(2*Math.PI*i/(n-1)); break;
+      case 'blackman':    w = 0.42 - 0.5*Math.cos(2*Math.PI*i/(n-1)) + 0.08*Math.cos(4*Math.PI*i/(n-1)); break;
+      case 'flat-top':    w = 1 - 1.93*Math.cos(2*Math.PI*i/(n-1)) + 1.29*Math.cos(4*Math.PI*i/(n-1))
+                              - 0.388*Math.cos(6*Math.PI*i/(n-1)) + 0.028*Math.cos(8*Math.PI*i/(n-1)); break;
+      case 'rectangular': w = 1; break;
+    }
+    return v * w;
+  });
+}
+
+const CH_COLOR = { v1: '#008184', v2: '#FF9900', v3: '#FF2B2B' };
+const CH_KEYS  = ['v1', 'v2', 'v3'];
+
+// Build initial 3 empty datasets (one per channel, bar type for overlay)
+const fftCtx = document.getElementById('fft-plot').getContext('2d');
+const fftChart = new Chart(fftCtx, {
+  type: 'bar',
+  data: {
+    labels: [],
+    datasets: CH_KEYS.map(ch => ({
+      label: ch.replace('v', 'CH'),
+      data: [],
+      backgroundColor: CH_COLOR[ch] + 'aa',
+      borderColor: CH_COLOR[ch],
+      borderWidth: 0,
+      borderRadius: 0,
+      barPercentage: 1.0,
+      categoryPercentage: 1.0,
+      hidden: false,
+    }))
+  },
+  options: {
+    animation: false, responsive: true, maintainAspectRatio: true, aspectRatio: 3,
+    scales: {
+      x: {
+        display: true,
+        title: { display: true, text: 'Hz', font: { family: 'Courier New', size: 10 }, color: '#5D6A6B' },
+        ticks: { font: { family: 'Courier New', size: 10 }, color: '#5D6A6B', maxTicksLimit: 10,
+                 callback: (_, i) => { const l = fftChart.data.labels[i]; return l !== undefined ? Number(l).toFixed(1) : ''; } }
+      },
+      y: {
+        display: true, grid: { color: '#e9ecef' },
+        title: { display: true, text: 'dB', font: { family: 'Courier New', size: 10 }, color: '#5D6A6B' },
+        ticks: { font: { family: 'Courier New', size: 10 }, color: '#5D6A6B', maxTicksLimit: 6 }
+      }
+    },
+    plugins: {
+      legend: { display: true, labels: { font: { family: 'Courier New', size: 10 }, color: '#2C353A', boxWidth: 12 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} ${document.getElementById('fft-scale').value === 'db' ? 'dB' : ''}`,
+          title: ctx => `${parseFloat(ctx[0].label).toFixed(2)} Hz`
+        }
+      }
+    }
+  }
+});
+
+// Which channels are selected for FFT
+const fftChActive = { v1: true, v2: true, v3: true };
+
+let fftTimer = null;
+const FFT_INTERVAL = 200;
+
+function computeChFFT(ch, fftSize, winType, scaleType) {
+  const pairs = allSamples.filter(s => s[ch] != null).slice(-fftSize);
+  if (pairs.length < 32) return null;
+  const dt = (pairs[pairs.length-1].t - pairs[0].t) / (pairs.length - 1);
+  const fs = dt > 0 ? 1 / dt : 100;
+  let N = 1;
+  while (N * 2 <= Math.min(pairs.length, fftSize)) N *= 2;
+  const raw = pairs.slice(-N).map(s => s[ch]);
+  const windowed = applyWindow(raw, winType);
+  const mean = windowed.reduce((a, b) => a + b, 0) / N;
+  const re = windowed.map(v => v - mean);
+  const im = new Array(N).fill(0);
+  fft(re, im);
+  const half = N / 2;
+  const mags = [];
+  for (let k = 1; k < half; k++) {
+    const mag = 2 * Math.sqrt(re[k]*re[k] + im[k]*im[k]) / N;
+    mags.push(scaleType === 'db' ? 20 * Math.log10(Math.max(mag, 1e-9)) : mag);
+  }
+  const freqs = Array.from({ length: half - 1 }, (_, k) => ((k + 1) * fs / N).toFixed(2));
+  return { mags, freqs, fs, N };
+}
+
+function fftStats(mags, freqs, scaleType) {
+  if (!mags || !mags.length) return null;
+  let peakIdx = 0, peakMag = mags[0];
+  for (let i = 1; i < mags.length; i++) { if (mags[i] > peakMag) { peakMag = mags[i]; peakIdx = i; } }
+  const peakFreq = parseFloat(freqs[peakIdx]);
+  const threshold = scaleType === 'db' ? -40 : 0.005 * Math.max(...mags);
+  let fundIdx = mags.findIndex(m => m > threshold);
+  const fundFreq = fundIdx >= 0 ? parseFloat(freqs[fundIdx]) : peakFreq;
+  let fundPow = 0, harmPow = 0;
+  mags.forEach((m, i) => {
+    const f = parseFloat(freqs[i]);
+    const linMag = scaleType === 'db' ? Math.pow(10, m / 20) : m;
+    if (Math.abs(f - fundFreq) < fundFreq * 0.3) fundPow += linMag * linMag;
+    else if (f > fundFreq * 1.5) harmPow += linMag * linMag;
+  });
+  const thd = fundPow > 0 ? Math.sqrt(harmPow / fundPow) * 100 : null;
+  const sorted = [...mags].sort((a, b) => a - b);
+  const noiseMag = sorted[Math.floor(sorted.length * 0.5)];
+  const snr = scaleType === 'db' ? peakMag - noiseMag : (noiseMag > 0 ? 20 * Math.log10(peakMag / noiseMag) : null);
+  return { peakFreq, peakMag, fundFreq, thd, snr };
+}
+
+function runFFT() {
+  const winType   = document.getElementById('fft-window').value;
+  const fftSize   = parseInt(document.getElementById('fft-size').value);
+  const scaleType = document.getElementById('fft-scale').value;
+
+  // Compute FFT for each active channel that has data
+  let sharedFreqs = null;
+  const results = {};
+  CH_KEYS.forEach(ch => {
+    if (!fftChActive[ch] || !channelActive[ch]) return;
+    const r = computeChFFT(ch, fftSize, winType, scaleType);
+    if (!r) return;
+    results[ch] = r;
+    // Use the longest freq axis as shared x labels
+    if (!sharedFreqs || r.freqs.length > sharedFreqs.length) sharedFreqs = r.freqs;
+  });
+
+  if (!sharedFreqs) return;
+  fftChart.data.labels = sharedFreqs;
+
+  // Update datasets
+  CH_KEYS.forEach((ch, i) => {
+    const r = results[ch];
+    const ds = fftChart.data.datasets[i];
+    if (!r) {
+      ds.data = [];
+      ds.hidden = true;
+    } else {
+      // Align to sharedFreqs length (pad with null if shorter)
+      const aligned = Array(sharedFreqs.length).fill(null);
+      r.mags.forEach((m, j) => { if (j < aligned.length) aligned[j] = m; });
+      ds.data = aligned;
+      ds.hidden = false;
+    }
+  });
+
+  // Y axis label
+  fftChart.options.scales.y.title.text = scaleType === 'db' ? 'dB' : 'Mag';
+  fftChart.update('none');
+
+  // Update per-channel info panels
+  document.querySelectorAll('.fft-unit').forEach(el => el.textContent = scaleType === 'db' ? 'dB' : '');
+  const fmt = v => v != null ? v.toFixed(2) : '—';
+  CH_KEYS.forEach(ch => {
+    const panel = document.getElementById(`fft-info-${ch}`);
+    if (!panel) return;
+    const r = results[ch];
+    const hasData = !!r && fftChActive[ch] && channelActive[ch];
+    panel.style.display = hasData ? '' : 'none';
+    if (!hasData) return;
+    const st = fftStats(r.mags, r.freqs, scaleType);
+    if (!st) return;
+    document.getElementById(`fft-peak-freq-${ch}`).textContent = fmt(st.peakFreq);
+    document.getElementById(`fft-peak-mag-${ch}`).textContent  = fmt(st.peakMag);
+    document.getElementById(`fft-fund-${ch}`).textContent      = fmt(st.fundFreq);
+    document.getElementById(`fft-thd-${ch}`).textContent       = st.thd != null ? st.thd.toFixed(1) : '—';
+    document.getElementById(`fft-snr-${ch}`).textContent       = st.snr != null ? st.snr.toFixed(1) : '—';
+  });
+}
+
+const fftEnabledEl = document.getElementById('fft-enabled');
+fftEnabledEl.addEventListener('change', () => {
+  if (fftEnabledEl.checked) {
+    fftTimer = setInterval(runFFT, FFT_INTERVAL);
+  } else {
+    clearInterval(fftTimer); fftTimer = null;
+    fftChart.data.labels = [];
+    fftChart.data.datasets.forEach(ds => { ds.data = []; ds.hidden = true; });
+    fftChart.update('none');
+    CH_KEYS.forEach(ch => { const p = document.getElementById(`fft-info-${ch}`); if (p) p.style.display = 'none'; });
+  }
+});
+
+document.querySelectorAll('.fft-ch-toggle').forEach(cb => {
+  cb.addEventListener('change', () => {
+    fftChActive[cb.dataset.ch] = cb.checked;
+    if (fftEnabledEl.checked) runFFT();
+  });
+});
+
+['fft-window','fft-size','fft-scale'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { if (fftEnabledEl.checked) runFFT(); });
+});
+
+
+
+// ── XY Plot ───────────────────────────────────────────────────
+(function() {
+  const xyCanvas  = document.getElementById('xy-plot');
+  const xyCtx     = xyCanvas.getContext('2d');
+  const xyEnabled = document.getElementById('xy-enabled');
+  const xyChX     = document.getElementById('xy-ch-x');
+  const xyChY     = document.getElementById('xy-ch-y');
+  const xyPointsEl= document.getElementById('xy-points');
+  const xyPersist = document.getElementById('xy-persist');
+  const xyTraceEl = document.getElementById('xy-trace');
+
+  const CH_COL = { v1: '#008184', v2: '#FF9900', v3: '#FF2B2B' };
+  let xyTimer = null;
+  const XY_INTERVAL = 50; // 20fps
+
+  function resizeXY() {
+    const w = xyCanvas.offsetWidth;
+    const h = xyCanvas.offsetHeight;
+    if (xyCanvas.width !== w || xyCanvas.height !== h) {
+      xyCanvas.width  = w * devicePixelRatio;
+      xyCanvas.height = h * devicePixelRatio;
+      xyCtx.scale(devicePixelRatio, devicePixelRatio);
+    }
+  }
+
+  function drawGrid(W, H) {
+    xyCtx.strokeStyle = '#e9ecef';
+    xyCtx.lineWidth = 1;
+    const steps = 8;
+    for (let i = 0; i <= steps; i++) {
+      const x = (W / steps) * i, y = (H / steps) * i;
+      xyCtx.beginPath(); xyCtx.moveTo(x, 0); xyCtx.lineTo(x, H); xyCtx.stroke();
+      xyCtx.beginPath(); xyCtx.moveTo(0, y); xyCtx.lineTo(W, y); xyCtx.stroke();
+    }
+    // Axes
+    xyCtx.strokeStyle = '#cdd7d8'; xyCtx.lineWidth = 1.5;
+    xyCtx.beginPath(); xyCtx.moveTo(W/2, 0); xyCtx.lineTo(W/2, H); xyCtx.stroke();
+    xyCtx.beginPath(); xyCtx.moveTo(0, H/2); xyCtx.lineTo(W, H/2); xyCtx.stroke();
+  }
+
+  function drawAxisLabels(W, H, xMin, xMax, yMin, yMax, chX, chY) {
+    xyCtx.font = 'bold 9px Courier New, monospace';
+    xyCtx.fillStyle = '#5D6A6B';
+    // X axis label
+    xyCtx.fillText(`${chX.replace('v','CH')} →`, W - 36, H/2 - 4);
+    // Y axis label
+    xyCtx.save(); xyCtx.translate(12, H/2); xyCtx.rotate(-Math.PI/2);
+    xyCtx.fillText(`${chY.replace('v','CH')} ↑`, -18, 0);
+    xyCtx.restore();
+    // Corner values
+    xyCtx.fillText(xMin.toFixed(0), 4, H - 4);
+    xyCtx.fillText(xMax.toFixed(0), W - 28, H - 4);
+    xyCtx.fillText(yMax.toFixed(0), W/2 + 4, 12);
+    xyCtx.fillText(yMin.toFixed(0), W/2 + 4, H - 4);
+  }
+
+  function runXY() {
+    resizeXY();
+    const W = xyCanvas.offsetWidth || 300;
+    const H = xyCanvas.offsetHeight || 300;
+
+    const chX = xyChX.value, chY = xyChY.value;
+    const nPoints = parseInt(xyPointsEl.value);
+    const persist = parseFloat(xyPersist.value);
+    const trace   = xyTraceEl.checked;
+
+    // Collect paired samples
+    const pairs = allSamples.filter(s => s[chX] != null && s[chY] != null).slice(-nPoints);
+    if (pairs.length < 2) return;
+
+    const xs = pairs.map(s => s[chX]);
+    const ys = pairs.map(s => s[chY]);
+
+    const xMin = Math.min(...xs), xMax = Math.max(...xs);
+    const yMin = Math.min(...ys), yMax = Math.max(...ys);
+    const xSpan = xMax - xMin || 1, ySpan = yMax - yMin || 1;
+
+    // Persistence: fade previous frame
+    if (persist > 0) {
+      xyCtx.fillStyle = `rgba(255,255,255,${1 - persist})`;
+      xyCtx.fillRect(0, 0, W, H);
+    } else {
+      xyCtx.clearRect(0, 0, W, H);
+      xyCtx.fillStyle = '#fff';
+      xyCtx.fillRect(0, 0, W, H);
+    }
+
+    drawGrid(W, H);
+
+    // Map to canvas
+    const px = v => ((v - xMin) / xSpan) * (W - 20) + 10;
+    const py = v => H - (((v - yMin) / ySpan) * (H - 20) + 10);
+
+    const color = CH_COL[chY] || '#008184';
+
+    if (trace) {
+      // Line trace
+      xyCtx.beginPath();
+      xyCtx.strokeStyle = color + 'cc';
+      xyCtx.lineWidth = 1;
+      pairs.forEach((p, i) => {
+        const x = px(p[chX]), y = py(p[chY]);
+        i === 0 ? xyCtx.moveTo(x, y) : xyCtx.lineTo(x, y);
+      });
+      xyCtx.stroke();
+    }
+
+    // Dots — color gradient by time (older = transparent)
+    pairs.forEach((p, i) => {
+      const alpha = 0.3 + 0.7 * (i / pairs.length);
+      xyCtx.fillStyle = color + Math.round(alpha * 255).toString(16).padStart(2, '0');
+      xyCtx.beginPath();
+      xyCtx.arc(px(p[chX]), py(p[chY]), 1.5, 0, Math.PI * 2);
+      xyCtx.fill();
+    });
+
+    drawAxisLabels(W, H, xMin, xMax, yMin, yMax, chX, chY);
+
+    // ── Stats ──
+    const n = xs.length;
+    const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+    let sxy=0, sx2=0, sy2=0;
+    for (let i=0; i<n; i++) { sxy+=(xs[i]-mx)*(ys[i]-my); sx2+=(xs[i]-mx)**2; sy2+=(ys[i]-my)**2; }
+    const corr = (sx2>0&&sy2>0) ? sxy/Math.sqrt(sx2*sy2) : 0;
+
+    // Phase via Lissajous: sin(Δφ) = 2*y0 / ymax where y0 = y at x-crossing
+    // Approximate: find zero-crossings of x (around mean) and sample y there
+    let y0sum=0, y0count=0;
+    const xc = mx;
+    for (let i=1; i<n; i++) {
+      if ((xs[i-1]-xc)*(xs[i]-xc) < 0) {
+        const t = (xc-xs[i-1])/(xs[i]-xs[i-1]);
+        y0sum += ys[i-1] + t*(ys[i]-ys[i-1]);
+        y0count++;
+      }
+    }
+    let phase = null;
+    if (y0count > 0 && ySpan > 0) {
+      const y0 = y0sum / y0count;
+      const sinPhi = 2 * (y0 - yMin - ySpan/2) / ySpan;
+      if (Math.abs(sinPhi) <= 1) phase = Math.asin(Math.max(-1, Math.min(1, sinPhi))) * 180 / Math.PI;
+    }
+
+    // Lissajous freq ratio: count x-crossings vs y-crossings
+    let xCross=0, yCross=0;
+    for (let i=1; i<n; i++) {
+      if ((xs[i-1]-mx)*(xs[i]-mx)<0) xCross++;
+      if ((ys[i-1]-my)*(ys[i]-my)<0) yCross++;
+    }
+    const ratio = (yCross>0) ? (xCross/yCross).toFixed(2) : '—';
+
+    document.getElementById('xy-phase').textContent  = phase!=null ? phase.toFixed(1) : '—';
+    document.getElementById('xy-ratio').textContent  = ratio;
+    document.getElementById('xy-xrange').textContent = xSpan.toFixed(1);
+    document.getElementById('xy-yrange').textContent = ySpan.toFixed(1);
+    document.getElementById('xy-corr').textContent   = corr.toFixed(3);
+  }
+
+  xyEnabled.addEventListener('change', () => {
+    if (xyEnabled.checked) {
+      xyTimer = setInterval(runXY, XY_INTERVAL);
+    } else {
+      clearInterval(xyTimer); xyTimer = null;
+      xyCtx.clearRect(0, 0, xyCanvas.width, xyCanvas.height);
+      ['xy-phase','xy-ratio','xy-xrange','xy-yrange','xy-corr'].forEach(id => { document.getElementById(id).textContent = '—'; });
+    }
+  });
+
+  ['xy-ch-x','xy-ch-y','xy-points','xy-persist','xy-trace'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => { if (xyEnabled.checked) runXY(); });
+  });
+
+  // Resize observer
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => { if (xyEnabled.checked) runXY(); }).observe(xyCanvas.parentElement);
+  }
+})();
